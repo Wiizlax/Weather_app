@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchWeather } from '../services/WeatherService';
+import { fetchCitySuggestions } from '../services/CityService';
 import { 
   TextField, 
   Button, 
@@ -8,13 +9,16 @@ import {
   CardContent, 
   Typography, 
   CircularProgress, 
-  Box 
+  Box, 
+  Autocomplete 
 } from '@mui/material';
 
 const Weather = () => {
   const [city, setCity] = useState('Brussels');
   const [selectedCity, setSelectedCity] = useState('Brussels');
+  const [citySuggestions, setCitySuggestions] = useState([]);
 
+  // Fetch de la météo
   const { data, error, isLoading } = useQuery(
     ['weather', selectedCity],
     () => fetchWeather(selectedCity),
@@ -23,7 +27,19 @@ const Weather = () => {
     }
   );
 
-  console.log(data);
+  // Fetch des suggestions de villes
+  const handleCityChange = async (e, newValue) => {
+    if (newValue === city) return;
+    setCity(newValue);
+    if (newValue.length > 2) {
+      try {
+        const suggestions = await fetchCitySuggestions(newValue);
+        setCitySuggestions(suggestions);
+      } catch (error) {
+        console.error('Error fetching city suggestions:', error);
+      }
+    }
+  };
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -46,13 +62,19 @@ const Weather = () => {
         Weather App
       </Typography>
       <form onSubmit={handleSearch}>
-        <TextField
-          label="Enter city"
-          variant="outlined"
+        <Autocomplete
+          options={citySuggestions.map((city) => city.name)}
           value={city}
-          onChange={(e) => setCity(e.target.value)}
-          fullWidth
-          sx={{ marginBottom: '10px' }}
+          onInputChange={handleCityChange}
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              label="Enter city"
+              variant="outlined"
+              fullWidth
+              sx={{ marginBottom: '10px' }}
+            />
+          )}
         />
         <Button 
           variant="contained" 
@@ -69,7 +91,7 @@ const Weather = () => {
       )}
       {error && (
         <Typography color="error" sx={{ marginTop: '20px' }}>
-          check spelling or no data present for this city.
+          Check spelling or no data present for this city.
         </Typography>
       )}
       {data && (
